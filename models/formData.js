@@ -43,6 +43,10 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
+    messageId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   });
 
   return FormData;
