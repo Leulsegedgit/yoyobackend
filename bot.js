@@ -41,6 +41,7 @@ async function getUpdates() {
 function handleCallbackQuery(callbackQuery) {
   const callbackData = callbackQuery.data;
   const chatId = callbackQuery.message.chat.id;
+  const callbackQueryId = callbackQuery.id;
   const messageId = callbackQuery.message.message_id;
 
   let responseText = "";
@@ -62,19 +63,16 @@ function handleCallbackQuery(callbackQuery) {
       responseText = "Unknown action.";
   }
 
-  const replyUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`;
-  axios
-    .post(replyUrl, {
-      chat_id: chatId,
-      message_id: messageId,
-      text: responseText,
-    })
-    .then((response) => {
-      console.log("Callback query handled:", response.data);
-    })
-    .catch((error) => {
-      console.error("Error handling callback query:", error);
-    });
+  const answerUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/answerCallbackQuery`;
+  axios.post(answerUrl, {
+    callback_query_id: callbackQueryId,
+    text: responseText,
+    show_alert: true, // This will show the popup as an alert
+  }).then(response => {
+    console.log('Callback query handled:', response.data);
+  }).catch(error => {
+    console.error('Error handling callback query:', error);
+  });
 }
 
 // Function to update action in the database
